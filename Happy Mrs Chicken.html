@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Happy Mrs. Chicken</title>
+    <style>
+        body { 
+            margin: 0; padding: 0; overflow: hidden; 
+            background-color: #87CEFA; 
+            /* Peppa style font fallback */
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            width: 100vw; height: 100vh;
+        }
+        #game-board { width: 100%; height: 100%; position: relative; cursor: pointer; }
+        
+        #counter {
+            position: absolute; top: 20px; left: 20px;
+            font-size: 36px; color: #ff66cc; /* Peppa Pink */
+            text-shadow: 3px 3px 0px white; z-index: 100;
+        }
+
+        /* Peppa Pig Theme Start Screen */
+        #start-overlay {
+            position: fixed; inset: 0; background: #87CEFA;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; z-index: 500; text-align: center;
+        }
+
+        .peppa-title {
+            color: white; font-size: 60px;
+            text-shadow: 4px 4px 0px #ff66cc;
+            margin: 0 0 20px 0;
+        }
+
+        .menu-chicken-img {
+            width: 150px; height: auto; margin-bottom: 30px;
+            filter: drop-shadow(5px 5px 0px white);
+        }
+
+        .play-btn {
+            padding: 15px 50px; font-size: 32px; cursor: pointer;
+            background: #ff66cc; color: white;
+            border: 6px solid white; border-radius: 50px;
+            font-weight: bold; box-shadow: 0 8px 0px #d449a1;
+        }
+
+        /* Game Elements */
+        .sprite {
+            position: absolute; display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease-out; pointer-events: none;
+        }
+        .mother-img { width: 110px; height: auto; }
+        .baby-img { width: 55px; height: auto; }
+        .egg-sprite { font-size: 50px; transition: none !important; }
+        .chick-move { transition: left 3s linear !important; }
+
+        /* Peppa Grass Floor */
+        #grass {
+            position: absolute; bottom: 0; width: 100%; height: 15%;
+            background: #78e08f; border-top: 8px solid #63ca73; z-index: 5;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="counter">Eggs: 0</div>
+    
+    <div id="start-overlay">
+        <div>
+            <h1 class="peppa-title">Happy Mrs. Chicken</h1>
+            <img src="Happymrschicken.webp" class="menu-chicken-img" onerror="this.src='https://openmoji.org/data/color/svg/1F413.svg'">
+            <br>
+            <button class="play-btn" onclick="begin()">PLAY!</button>
+            <p style="color: white; margin-top: 20px; font-weight: bold;">(Use Spacebar to lay eggs)</p>
+        </div>
+    </div>
+    
+    <div id="game-board">
+        <div id="grass"></div>
+        <div id="chicken" class="sprite" style="display: none;">
+            <img src="Happymrschicken.webp" class="mother-img" onerror="this.src='https://openmoji.org/data/color/svg/1F413.svg'">
+        </div>
+    </div>
+
+    <script>
+        // Global Game State
+        const state = {
+            active: false,
+            count: 0,
+            x: window.innerWidth / 2 - 50,
+            y: window.innerHeight / 2 - 50,
+            held: false 
+        };
+
+        const chicken = document.getElementById('chicken');
+        const board = document.getElementById('game-board');
+        const counter = document.getElementById('counter');
+        
+        // Audio Objects
+        const bawk = new Audio('Bawk.mp3');
+        const crack = new Audio('Crack.mp3');
+        const music = new Audio('Music.mp3');
+        music.loop = true;
+        music.volume = 0.5; // Half as loud as other sound effects
+
+        function begin() {
+            if (state.active) return;
+            state.active = true;
+            
+            document.getElementById('start-overlay').style.display = 'none';
+            
+            chicken.style.display = 'flex';
+            chicken.style.left = state.x + "px";
+            chicken.style.top = state.y + "px";
+            
+            music.play().catch(e => console.log("Music file not found."));
+        }
+
+        function spawnEgg(ex, ey) {
+            const egg = document.createElement('div');
+            egg.className = 'sprite egg-sprite';
+            egg.innerText = "🥚";
+            egg.style.left = ex + "px";
+            egg.style.top = ey + "px";
+            board.appendChild(egg);
+
+            setTimeout(() => {
+                crack.currentTime = 0;
+                crack.play().catch(e => {});
+                
+                egg.innerText = "";
+                const baby = document.createElement('img');
+                baby.src = "Happymrschicken.webp";
+                baby.className = "baby-img";
+                baby.onerror = function() { this.outerHTML = "🐥"; };
+                egg.appendChild(baby);
+                
+                egg.classList.add('chick-move');
+                setTimeout(() => {
+                    egg.style.left = "-200px";
+                    setTimeout(() => egg.remove(), 3500);
+                }, 50);
+            }, 2000);
+        }
+
+        window.addEventListener('keydown', function(e) {
+            if (!state.active) return;
+            if (e.code === 'Space' || e.keyCode === 32) {
+                e.preventDefault();
+                
+                if (state.held) return; // Spam Prevention
+                state.held = true;
+
+                bawk.currentTime = 0;
+                bawk.play().catch(e => {});
+
+                spawnEgg(state.x, state.y);
+
+                const oldX = state.x;
+                state.x = Math.random() * (window.innerWidth - 120);
+                // Keep the chicken above the grass line
+                state.y = Math.random() * (window.innerHeight * 0.7);
+                
+                chicken.style.transform = (state.x < oldX) ? 'scaleX(1)' : 'scaleX(-1)';
+                chicken.style.left = state.x + "px";
+                chicken.style.top = state.y + "px";
+
+                state.count++;
+                counter.innerText = "Eggs: " + state.count;
+            }
+        });
+
+        window.addEventListener('keyup', function(e) {
+            if (e.code === 'Space' || e.keyCode === 32) {
+                state.held = false;
+            }
+        });
+    </script>
+</body>
+</html>
