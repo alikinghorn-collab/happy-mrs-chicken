@@ -82,101 +82,119 @@
         </div>
     </div>
 
-    <script>
-        // Global Game State
-        const state = {
-            active: false,
-            count: 0,
-            x: window.innerWidth / 2 - 50,
-            y: window.innerHeight / 2 - 50,
-            held: false 
-        };
+   <script>
+    // Global Game State
+    const state = {
+        active: false,
+        count: 0,
+        x: window.innerWidth / 2 - 50,
+        y: window.innerHeight / 2 - 50,
+        held: false 
+    };
 
-        const chicken = document.getElementById('chicken');
-        const board = document.getElementById('game-board');
-        const counter = document.getElementById('counter');
+    const chicken = document.getElementById('chicken');
+    const board = document.getElementById('game-board');
+    const counter = document.getElementById('counter');
+    
+    // Audio Objects
+    const bawk = new Audio('Bawk.mp3');
+    const crack = new Audio('Crack.mp3');
+    const music = new Audio('Music.mp3');
+    music.loop = true;
+    music.volume = 0.5;
+
+    function begin() {
+        if (state.active) return;
+        state.active = true;
         
-        // Audio Objects
-        const bawk = new Audio('Bawk.mp3');
-        const crack = new Audio('Crack.mp3');
-        const music = new Audio('Music.mp3');
-        music.loop = true;
-        music.volume = 1; // Half as loud as other sound effects
+        document.getElementById('start-overlay').style.display = 'none';
+        
+        chicken.style.display = 'flex';
+        chicken.style.left = state.x + "px";
+        chicken.style.top = state.y + "px";
+        
+        music.play().catch(e => console.log("Music file not found."));
+    }
 
-        function begin() {
-            if (state.active) return;
-            state.active = true;
-            
-            document.getElementById('start-overlay').style.display = 'none';
-            
-            chicken.style.display = 'flex';
-            chicken.style.left = state.x + "px";
-            chicken.style.top = state.y + "px";
-            
-            music.play().catch(e => console.log("Music file not found."));
-        }
+    // NEW: Consolidated function for laying eggs
+    function layEgg() {
+        if (!state.active || state.held) return;
 
-        function spawnEgg(ex, ey) {
-            const egg = document.createElement('div');
-            egg.className = 'sprite egg-sprite';
-            egg.innerText = "🥚";
-            egg.style.left = ex + "px";
-            egg.style.top = ey + "px";
-            board.appendChild(egg);
+        state.held = true;
+        bawk.currentTime = 0;
+        bawk.play().catch(e => {});
 
+        spawnEgg(state.x, state.y);
+
+        const oldX = state.x;
+        state.x = Math.random() * (window.innerWidth - 120);
+        state.y = Math.random() * (window.innerHeight * 0.7);
+        
+        chicken.style.transform = (state.x < oldX) ? 'scaleX(1)' : 'scaleX(-1)';
+        chicken.style.left = state.x + "px";
+        chicken.style.top = state.y + "px";
+
+        state.count++;
+        counter.innerText = "Eggs: " + state.count;
+    }
+
+    function spawnEgg(ex, ey) {
+        const egg = document.createElement('div');
+        egg.className = 'sprite egg-sprite';
+        egg.innerText = "🥚";
+        egg.style.left = ex + "px";
+        egg.style.top = ey + "px";
+        board.appendChild(egg);
+
+        setTimeout(() => {
+            crack.currentTime = 0;
+            crack.play().catch(e => {});
+            
+            egg.innerText = "";
+            const baby = document.createElement('img');
+            baby.src = "Happymrschicken.webp";
+            baby.className = "baby-img";
+            baby.onerror = function() { this.outerHTML = "🐥"; };
+            egg.appendChild(baby);
+            
+            egg.classList.add('chick-move');
             setTimeout(() => {
-                crack.currentTime = 0;
-                crack.play().catch(e => {});
-                
-                egg.innerText = "";
-                const baby = document.createElement('img');
-                baby.src = "Happymrschicken.webp";
-                baby.className = "baby-img";
-                baby.onerror = function() { this.outerHTML = "🐥"; };
-                egg.appendChild(baby);
-                
-                egg.classList.add('chick-move');
-                setTimeout(() => {
-                    egg.style.left = "-200px";
-                    setTimeout(() => egg.remove(), 3500);
-                }, 50);
-            }, 2000);
+                egg.style.left = "-200px";
+                setTimeout(() => egg.remove(), 3500);
+            }, 50);
+        }, 2000);
+    }
+
+    // --- INPUT HANDLERS ---
+
+    // Keyboard support (Spacebar)
+    window.addEventListener('keydown', function(e) {
+        if (e.code === 'Space' || e.keyCode === 32) {
+            e.preventDefault();
+            layEgg();
         }
+    });
 
-        window.addEventListener('keydown', function(e) {
-            if (!state.active) return;
-            if (e.code === 'Space' || e.keyCode === 32) {
-                e.preventDefault();
-                
-                if (state.held) return; // Spam Prevention
-                state.held = true;
+    window.addEventListener('keyup', function(e) {
+        if (e.code === 'Space' || e.keyCode === 32) {
+            state.held = false;
+        }
+    });
 
-                bawk.currentTime = 0;
-                bawk.play().catch(e => {});
+    // Mobile/Touch support
+    window.addEventListener('pointerdown', function(e) {
+        // Prevent double-triggering if clicking the play button
+        if (e.target.classList.contains('play-btn')) return;
+        
+        layEgg();
+    });
 
-                spawnEgg(state.x, state.y);
-
-                const oldX = state.x;
-                state.x = Math.random() * (window.innerWidth - 120);
-                // Keep the chicken above the grass line
-                state.y = Math.random() * (window.innerHeight * 0.7);
-                
-                chicken.style.transform = (state.x < oldX) ? 'scaleX(1)' : 'scaleX(-1)';
-                chicken.style.left = state.x + "px";
-                chicken.style.top = state.y + "px";
-
-                state.count++;
-                counter.innerText = "Eggs: " + state.count;
-            }
-        });
-
-        window.addEventListener('keyup', function(e) {
-            if (e.code === 'Space' || e.keyCode === 32) {
-                state.held = false;
-            }
-        });
-    </script>
+    window.addEventListener('pointerup', function() {
+        state.held = false;
+    });
+</script>
 </body>
 </html>
+
 
 
